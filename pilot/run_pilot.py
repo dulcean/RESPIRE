@@ -6,10 +6,10 @@ import json
 import sys
 from pathlib import Path
 
-from reprise.audio import load_audio
-from reprise.embed import build_extractors
-from reprise.recall import analyze_song
-from reprise.report import write_report
+from respire.audio import load_audio
+from respire.embed import build_extractors
+from respire.recall import analyze_song
+from respire.report import write_report
 
 
 def read_manifest(path: Path) -> list[dict]:

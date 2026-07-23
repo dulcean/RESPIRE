@@ -1,6 +1,6 @@
 # Stage 0 — Pilot
 
-The analysis engine is built and validated (`src/reprise/`). This directory drives it.
+The analysis engine is built and validated (`src//`). This directory drives it.
 Stage 0 is the mandatory gate before any architecture work (see `TASK.md`).
 
 ## What the pipeline does

@@ -6,7 +6,7 @@ of being re-sung — asymmetric section reuse over hierarchical audio tokens.
 ## Layout
 
 ```
-src/reprise/     structural-recall metric engine
+src/respire/     structural-recall metric engine
   audio.py       audio loading / device
   embed.py       MERT / CLAP / MuQ / speaker extractors
   segment.py     SSM + Foote-novelty segmentation, chorus-group detection

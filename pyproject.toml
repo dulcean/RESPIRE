@@ -1,7 +1,7 @@
 [project]
-name = "reprise"
+name = "respire"
 version = "0.1.0"
-description = "Add your description here"
+description = "Pointer-based structural recall for full-song generation."
 readme = "README.md"
 authors = [
     { name = "dulcean" }
