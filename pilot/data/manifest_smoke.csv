@@ -1,0 +1,3 @@
+path,source
+pilot/data/smoke/gen1.wav,generated:synth
+pilot/data/smoke/real1.wav,real:synth
