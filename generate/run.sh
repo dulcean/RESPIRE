@@ -2,29 +2,39 @@
 
 set -euo pipefail
 
-REPO_DIR=${REPO_DIR:-SongGeneration}
-CKPT=${CKPT:-songgeneration_v2_large/model.pt}
-INPUT=${INPUT:-input.jsonl}
-OUT=${OUT:-output}
+HERE="$(cd "$(dirname "$0")" && pwd)"
+CKPT=${CKPT:-"$HERE/songgeneration_v2_large"}
+INPUT=${INPUT:-"$HERE/input.jsonl"}
+OUT=${OUT:-"$HERE/output"}
+CODE_DIR=${CODE_DIR:-"$HERE/SongGeneration"}
+WEIGHTS=${WEIGHTS:-"$HERE/ckpt_bundle"}
 
-if [ ! -d "$REPO_DIR" ]; then
-  uvx hf auth login
-  #git clone "${SONGGEN_REPO:-https://huggingface.co/tencent/SongGeneration}" "$REPO_DIR"
-  uvx hf download lglg666/SongGeneration-v2-large --local-dir ./songgeneration_v2_large
+[ -f "$CKPT/model.pt" ]     || { echo "no checkpoint at $CKPT/model.pt"; exit 1; }
+[ -f "$CKPT/config.yaml" ]  || { echo "no config at $CKPT/config.yaml"; exit 1; }
+[ -f "$INPUT" ]             || { echo "missing $INPUT (run make_jsonl.py first)"; exit 1; }
+
+if [ ! -d "$CODE_DIR" ]; then
+  git clone --depth 1 "${SONGGEN_REPO:-https://github.com/smthemex/ComfyUI_SongGeneration}" "$HERE/_mirror"
+  mv "$HERE/_mirror/SongGeneration" "$CODE_DIR"
+  rm -rf "$HERE/_mirror"
 fi
-cd "$REPO_DIR"
-mkdir -p ckpt
-if [ ! -d "$CKPT" ]; then
-  uvx hf download tencent/SongGeneration --local-dir ckpt --include "songgeneration_base_full/*"
+#
+#
+#
+if [ ! -d "$WEIGHTS/vae" ]; then
+  echo "Aux weights not found at $WEIGHTS."
+  echo "Download the SongGeneration ckpt bundle (vae/, model_septoken/, third_party/Qwen2-7B) there, e.g.:"
+  echo "  uvx hf download tencent/SongGeneration --local-dir $WEIGHTS --include 'ckpt/*'"
+  exit 1
 fi
 
-python -m venv .venv && source .venv/bin/activate
-pip install -U pip
-pip install -r requirements.txt || pip install -r requirements_nodeps.txt
+uv sync --quiet
 
-sh generate.sh "$CKPT" "../$INPUT" "../$OUT" --low_mem
+uv run python "$HERE/batch_generate.py" \
+  --config "$CKPT/config.yaml" --model "$CKPT/model.pt" --weights "$WEIGHTS" \
+  --input "$INPUT" --out "$OUT" --code "$CODE_DIR"
 
-echo "Done. Audio in ../$OUT/audio/*.flac"
-echo "Next (back on the metric box):"
-echo "  uv run python generate/build_manifest.py --dir $OUT/audio \\"
+echo "Done -> $OUT/audio/*.flac"
+echo "Back on the metric box:"
+echo "  uv run python generate/build_manifest.py --dir generate/output/audio \\"
 echo "      --source generated:levo2 --out pilot/data/manifest_gen.csv"
