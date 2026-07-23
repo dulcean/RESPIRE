@@ -3,17 +3,19 @@
 set -euo pipefail
 
 REPO_DIR=${REPO_DIR:-SongGeneration}
-CKPT=${CKPT:-ckpt/songgeneration_base_full}
+CKPT=${CKPT:-songgeneration_v2_large/model.pt}
 INPUT=${INPUT:-input.jsonl}
 OUT=${OUT:-output}
 
 if [ ! -d "$REPO_DIR" ]; then
-  git clone "${SONGGEN_REPO:-https://huggingface.co/tencent/SongGeneration}" "$REPO_DIR"
+  uvx hf auth login
+  #git clone "${SONGGEN_REPO:-https://huggingface.co/tencent/SongGeneration}" "$REPO_DIR"
+  uvx hf download lglg666/SongGeneration-v2-large --local-dir ./songgeneration_v2_large
 fi
 cd "$REPO_DIR"
 mkdir -p ckpt
 if [ ! -d "$CKPT" ]; then
-  huggingface-cli download tencent/SongGeneration --local-dir ckpt --include "songgeneration_base_full/*"
+  uvx hf download tencent/SongGeneration --local-dir ckpt --include "songgeneration_base_full/*"
 fi
 
 python -m venv .venv && source .venv/bin/activate

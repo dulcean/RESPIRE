@@ -4,13 +4,11 @@ Two corpora feed the pilot metric: **generated** (LeVo 2) and **real** (MTG-Jame
 
 ## 1. Generated songs (LeVo 2 / SongGeneration 2)
 
-The T4 has 16 GB → use `songgeneration_base_full` + `--low_mem` (the *large* models
-need 22–28 GB and won't fit). ~200 songs is an overnight batch.
 
 ```bash
 uv run python generate/make_jsonl.py --n 200 --out generate/input.jsonl
 
-huggingface-cli login
+uvx hf auth login
 bash run.sh
 
 uv run python generate/build_manifest.py --dir /path/to/output/audio \
