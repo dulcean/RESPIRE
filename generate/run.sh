@@ -23,8 +23,11 @@ fi
 #
 if [ ! -d "$WEIGHTS/vae" ]; then
   echo "Aux weights not found at $WEIGHTS."
-  echo "Download the SongGeneration ckpt bundle (vae/, model_septoken/, third_party/Qwen2-7B) there, e.g.:"
-  echo "  uvx hf download tencent/SongGeneration --local-dir $WEIGHTS --include 'ckpt/*'"
+  echo "The decoder bundle (vae/, model_septoken/, third_party/Qwen2-7B) is the GATED repo"
+  echo "tencent/SongGeneration. Accept its license on HF, then:"
+  echo "  uvx hf auth login"
+  echo "  uvx hf download tencent/SongGeneration --local-dir $WEIGHTS"
+  echo "  # China mirror (open): modelscope download AI-ModelScope/SongGeneration --local_dir $WEIGHTS"
   exit 1
 fi
 
