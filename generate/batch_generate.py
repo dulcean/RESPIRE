@@ -87,10 +87,11 @@ def main() -> int:
     cfg.mode = "inference"
     cfg.version = getattr(cfg, "version", "v2")
     cfg.offload_audiolm = False
-    cfg.vae_config = f"{W}/vae/stable_audio_1920_vae.json"
-    cfg.vae_model = f"{W}/vae/autoencoder_music_1320k.ckpt"
+    # ModelScope/tencent bundle layout: vae + tokenizers under ckpt/, Qwen2-7B at root.
+    cfg.vae_config = f"{W}/ckpt/vae/stable_audio_1920_vae.json"
+    cfg.vae_model = f"{W}/ckpt/vae/autoencoder_music_1320k.ckpt"
     cfg.audio_tokenizer_checkpoint_sep = (
-        f"Flow1dVAESeparate_{W}/model_septoken/model_2.safetensors"
+        f"Flow1dVAESeparate_{W}/ckpt/model_septoken/model_2.safetensors"
     )
     cfg.conditioners.type_info.QwTextTokenizer.token_path = f"{W}/third_party/Qwen2-7B"
 

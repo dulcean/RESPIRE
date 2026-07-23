@@ -21,13 +21,11 @@ fi
 #
 #
 #
-if [ ! -d "$WEIGHTS/vae" ]; then
-  echo "Aux weights not found at $WEIGHTS."
-  echo "The decoder bundle (vae/, model_septoken/, third_party/Qwen2-7B) is the GATED repo"
-  echo "tencent/SongGeneration. Accept its license on HF, then:"
-  echo "  uvx hf auth login"
-  echo "  uvx hf download tencent/SongGeneration --local-dir $WEIGHTS"
-  echo "  # China mirror (open): modelscope download AI-ModelScope/SongGeneration --local_dir $WEIGHTS"
+if [ ! -d "$WEIGHTS/ckpt/vae" ]; then
+  echo "Aux decoder bundle not found at $WEIGHTS (need ckpt/vae, ckpt/model_septoken, third_party/Qwen2-7B)."
+  echo "tencent/SongGeneration is gated/removed on HF; use the open ModelScope mirror:"
+  echo "  uvx --from modelscope modelscope download AI-ModelScope/SongGeneration --local_dir $WEIGHTS"
+  echo "  # (the LM you already have; you can skip ckpt/songgeneration_base/model.pt, ~11GB)"
   exit 1
 fi
 
