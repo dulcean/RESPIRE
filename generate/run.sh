@@ -26,7 +26,7 @@ uv pip install --quiet "transformers==4.40.2" "tokenizers>=0.19,<0.20"
 
 uv pip install --quiet descript-audio-codec alias-free-torch vector-quantize-pytorch \
   x-transformers einops-exts local-attention k-diffusion ema-pytorch prefigure aeiou \
-  openunmix
+  openunmix lameenc julius
 
 
 uv pip install --quiet "huggingface-hub>=0.23,<1.0" "setuptools<66"
