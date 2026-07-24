@@ -1,9 +1,3 @@
-"""
-  python generate/batch_generate.py --config generate/songgeneration_v2_large/config.yaml \
-      --model generate/songgeneration_v2_large/model.pt --weights /path/to/ckpt_bundle \
-      --input generate/input.jsonl --out generate/output --code generate/SongGeneration
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -11,10 +5,9 @@ import gc
 import json
 import os
 import sys
-import time
+import types
 from pathlib import Path
 
-import numpy as np
 import torch
 import torchaudio
 from omegaconf import OmegaConf
@@ -57,48 +50,49 @@ def build_sep_tokenizer(cfg):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--config", required=True, type=Path, help="checkpoint config.yaml")
+    ap.add_argument("--config", required=True, type=Path)
     ap.add_argument("--model", required=True, type=Path, help="audiolm model.pt")
     ap.add_argument(
-        "--weights",
-        required=True,
-        type=Path,
-        help="aux bundle (vae/, model_septoken/, third_party/Qwen2-7B)",
+        "--weights", required=True, type=Path, help="weights root (== code root here)"
     )
     ap.add_argument("--input", required=True, type=Path, help="input.jsonl")
     ap.add_argument("--out", type=Path, default=Path("generate/output"))
-    ap.add_argument(
-        "--code", required=True, type=Path, help="cloned SongGeneration code dir"
-    )
+    ap.add_argument("--code", required=True, type=Path, help="SongGeneration code dir")
+    ap.add_argument("--version", default="v1", choices=["v1", "v2"])
     ap.add_argument("--max-duration", type=float, default=150.0)
     ap.add_argument("--temp", type=float, default=0.9)
     ap.add_argument("--top-k", type=int, default=50)
     ap.add_argument("--cfg-coef", type=float, default=1.5)
     args = ap.parse_args()
 
-    sys.path.insert(0, str(args.code.resolve()))
     code_dir = args.code.resolve()
+    sys.path.insert(0, str(code_dir))
+
+    fp = types.ModuleType("folder_paths")
+    fp.base_path = str(code_dir)
+    fp.models_dir = str(code_dir.parent)
+    sys.modules.setdefault("folder_paths", fp)
     register_resolvers(code_dir)
+
+    config_path = args.config.resolve()
+    model_path = str(args.model.resolve())
+    input_path = args.input.resolve()
+    out_dir = args.out.resolve()
+    os.chdir(code_dir)
 
     from codeclm.models import CodecLM
 
-    W = str(args.weights.resolve())
-    cfg = OmegaConf.load(str(args.config))
+    cfg = OmegaConf.load(str(config_path))
     cfg.mode = "inference"
-    cfg.version = getattr(cfg, "version", "v2")
+    cfg.version = args.version
     cfg.offload_audiolm = False
+    if "lm" in cfg:
+        cfg.lm.use_flash_attn_2 = False
 
-    cfg.vae_config = f"{W}/ckpt/vae/stable_audio_1920_vae.json"
-    cfg.vae_model = f"{W}/ckpt/vae/autoencoder_music_1320k.ckpt"
-    cfg.audio_tokenizer_checkpoint_sep = (
-        f"Flow1dVAESeparate_{W}/ckpt/model_septoken/model_2.safetensors"
-    )
-    cfg.conditioners.type_info.QwTextTokenizer.token_path = f"{W}/third_party/Qwen2-7B"
+    (out_dir / "audio").mkdir(parents=True, exist_ok=True)
+    entries = [json.loads(l) for l in input_path.read_text().splitlines() if l.strip()]
 
-    (args.out / "audio").mkdir(parents=True, exist_ok=True)
-    entries = [json.loads(l) for l in args.input.read_text().splitlines() if l.strip()]
-
-    audiolm = build_lm(cfg, str(args.model)).cuda()
+    audiolm = build_lm(cfg, model_path).cuda()
     lm = CodecLM(
         name="tmp",
         lm=audiolm,
@@ -119,7 +113,7 @@ def main() -> int:
 
     for i, ent in enumerate(entries):
         idx = ent["idx"]
-        out_path = args.out / "audio" / f"{idx}.flac"
+        out_path = out_dir / "audio" / f"{idx}.flac"
         if out_path.exists():
             print(f"[{i+1}/{len(entries)}] {idx}: exists, skip", file=sys.stderr)
             continue
@@ -136,7 +130,6 @@ def main() -> int:
                     melody_is_wav=True,
                     return_tokens=True,
                 )
-
             sep = build_sep_tokenizer(cfg).eval().cuda()
             dec = CodecLM(
                 name="tmp",
@@ -159,7 +152,7 @@ def main() -> int:
         except Exception as e:
             print(f"[{i+1}/{len(entries)}] {idx}: ERROR {e}", file=sys.stderr)
 
-    print(f"Done -> {args.out}/audio/*.flac")
+    print(f"Done -> {out_dir}/audio/*.flac")
     return 0
 
 
