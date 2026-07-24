@@ -84,29 +84,31 @@ def main() -> int:
     import types
     fp = types.ModuleType("folder_paths")
     fp.base_path = str(code_dir)
-    fp.models_dir = str(code_dir)
+    fp.models_dir = str(code_dir.parent)  # so "<models_dir>/SongGeneration/ckpt/..." resolves
     sys.modules.setdefault("folder_paths", fp)
     register_resolvers(code_dir)
 
+    # Resolve everything to absolute BEFORE chdir; the config's own paths are relative
+    # (./ckpt/..., third_party/Qwen2-7B) and assume cwd == SongGeneration root.
+    config_path = args.config.resolve()
+    model_path = str(args.model.resolve())
+    input_path = args.input.resolve()
+    out_dir = args.out.resolve()
+    os.chdir(code_dir)
+
     from codeclm.models import CodecLM
 
-    W = str(args.weights.resolve())
-    cfg = OmegaConf.load(str(args.config))
+    cfg = OmegaConf.load(str(config_path))
     cfg.mode = "inference"
     cfg.version = args.version
     cfg.offload_audiolm = False
-    # ModelScope/tencent bundle layout: vae + tokenizers under ckpt/, Qwen2-7B at root.
-    cfg.vae_config = f"{W}/ckpt/vae/stable_audio_1920_vae.json"
-    cfg.vae_model = f"{W}/ckpt/vae/autoencoder_music_1320k.ckpt"
-    cfg.audio_tokenizer_checkpoint_sep = (
-        f"Flow1dVAESeparate_{W}/ckpt/model_septoken/model_2.safetensors"
-    )
-    cfg.conditioners.type_info.QwTextTokenizer.token_path = f"{W}/third_party/Qwen2-7B"
+    if "lm" in cfg:
+        cfg.lm.use_flash_attn_2 = False
 
-    (args.out / "audio").mkdir(parents=True, exist_ok=True)
-    entries = [json.loads(l) for l in args.input.read_text().splitlines() if l.strip()]
+    (out_dir / "audio").mkdir(parents=True, exist_ok=True)
+    entries = [json.loads(l) for l in input_path.read_text().splitlines() if l.strip()]
 
-    audiolm = build_lm(cfg, str(args.model)).cuda()
+    audiolm = build_lm(cfg, model_path).cuda()
     lm = CodecLM(
         name="tmp",
         lm=audiolm,
@@ -127,7 +129,7 @@ def main() -> int:
 
     for i, ent in enumerate(entries):
         idx = ent["idx"]
-        out_path = args.out / "audio" / f"{idx}.flac"
+        out_path = out_dir / "audio" / f"{idx}.flac"
         if out_path.exists():
             print(f"[{i+1}/{len(entries)}] {idx}: exists, skip", file=sys.stderr)
             continue
