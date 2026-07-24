@@ -21,6 +21,11 @@ fi
 mkdir -p "$ROOT/custom_nodes/ComfyUI_SongGeneration"
 ln -sfn "$ROOT" "$ROOT/custom_nodes/ComfyUI_SongGeneration/SongGeneration"
 
+if [ ! -f "$ROOT/ckpt/encode-s12k.pt" ]; then
+  echo "fetching encode-s12k.pt ..."
+  uvx hf download lglg666/SongGeneration-Runtime ckpt/encode-s12k.pt --local-dir "$ROOT"
+fi
+
 [ -f "$MODEL" ]           || { echo "no LM at $MODEL"; exit 1; }
 [ -f "$CFG" ]             || { echo "no config at $CFG"; exit 1; }
 [ -d "$ROOT/ckpt/vae" ]   || { echo "no decoder weights at $ROOT/ckpt/vae (download ModelScope bundle to $BUNDLE)"; exit 1; }
