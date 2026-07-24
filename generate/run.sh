@@ -42,7 +42,7 @@ uv pip install --quiet "huggingface-hub>=0.23,<1.0" "setuptools<66"
 
 uv run --no-sync python "$HERE/batch_generate.py" \
   --config "$CFG" --model "$MODEL" --weights "$ROOT" --version v1 \
-  --input "$INPUT" --out "$OUT" --code "$ROOT"
+  --input "$INPUT" --out "$OUT" --code "$ROOT" --limit "${LIMIT:-0}"
 
 echo "Done -> $OUT/audio/*.flac"
 echo "Back on the metric box:"
