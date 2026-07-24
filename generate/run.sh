@@ -24,6 +24,9 @@ fi
 
 uv pip install --quiet "transformers==4.40.2" "tokenizers>=0.19,<0.20"
 
+uv pip install --quiet descript-audio-codec alias-free-torch vector-quantize-pytorch \
+  x-transformers einops-exts local-attention
+
 uv run --no-sync python "$HERE/batch_generate.py" \
   --config "$CFG" --model "$MODEL" --weights "$ROOT" --version v1 \
   --input "$INPUT" --out "$OUT" --code "$ROOT"
