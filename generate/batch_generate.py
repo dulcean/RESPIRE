@@ -8,8 +8,8 @@ import sys
 import types
 from pathlib import Path
 
+import soundfile as sf
 import torch
-import torchaudio
 from omegaconf import OmegaConf
 
 
@@ -59,6 +59,12 @@ def main() -> int:
     ap.add_argument("--out", type=Path, default=Path("generate/output"))
     ap.add_argument("--code", required=True, type=Path, help="SongGeneration code dir")
     ap.add_argument("--version", default="v1", choices=["v1", "v2"])
+    ap.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="only generate the first N songs (smoke test)",
+    )
     ap.add_argument("--max-duration", type=float, default=150.0)
     ap.add_argument("--temp", type=float, default=0.9)
     ap.add_argument("--top-k", type=int, default=50)
@@ -93,6 +99,8 @@ def main() -> int:
 
     (out_dir / "audio").mkdir(parents=True, exist_ok=True)
     entries = [json.loads(l) for l in input_path.read_text().splitlines() if l.strip()]
+    if args.limit:
+        entries = entries[: args.limit]
 
     audiolm = build_lm(cfg, model_path)
     lm = CodecLM(
@@ -154,7 +162,8 @@ def main() -> int:
             w = wav.detach().cpu().float()
             if w.ndim == 1:
                 w = w.unsqueeze(0)
-            torchaudio.save(str(out_path), w, cfg.sample_rate)
+
+            sf.write(str(out_path), w.numpy().T, int(cfg.sample_rate))
             print(f"[{i+1}/{len(entries)}] {idx}: ok", file=sys.stderr)
         except Exception as e:
             audiolm.cpu()
