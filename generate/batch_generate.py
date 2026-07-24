@@ -80,6 +80,12 @@ def main() -> int:
 
     sys.path.insert(0, str(args.code.resolve()))
     code_dir = args.code.resolve()
+    # the ComfyUI mirror imports a ComfyUI-only `folder_paths` module; stub it out.
+    import types
+    fp = types.ModuleType("folder_paths")
+    fp.base_path = str(code_dir)
+    fp.models_dir = str(code_dir)
+    sys.modules.setdefault("folder_paths", fp)
     register_resolvers(code_dir)
 
     from codeclm.models import CodecLM
