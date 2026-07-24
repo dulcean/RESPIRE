@@ -219,4 +219,5 @@ __marimo__/
 
 # Research md
 TASK.md
-songgeneration_v2_large/
+SongGeneration/
+ckpt*/
