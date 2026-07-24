@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "alias-free-torch>=0.0.6",
     "diffusers>=0.39.0",
     "einops>=0.8.2",
     "librosa>=0.11.0",
