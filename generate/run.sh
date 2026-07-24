@@ -1,41 +1,38 @@
 #!/usr/bin/env bash
-
+# Generate ~200 chorus-repeating songs with SongGeneration (base v1) on the T4.
+# Everything lives under generate/SongGeneration/: codeclm code + conf/ + the ckpt/ and
+# third_party/ weights (merged from the ModelScope bundle). Base v1 fits the T4 (~10GB).
+# Run from the repo root:  bash generate/run.sh
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-CKPT=${CKPT:-"$HERE/songgeneration_v2_large"}
+ROOT=${ROOT:-"$HERE/SongGeneration"}              # code + weights, one tree
+CFG=${CFG:-"$ROOT/conf/base_config.yaml"}
+MODEL=${MODEL:-"$ROOT/ckpt/songgeneration_base/model.pt"}
 INPUT=${INPUT:-"$HERE/input.jsonl"}
 OUT=${OUT:-"$HERE/output"}
-CODE_DIR=${CODE_DIR:-"$HERE/SongGeneration"}
-WEIGHTS=${WEIGHTS:-"$HERE/ckpt_bundle"}
+BUNDLE=${BUNDLE:-"$HERE/ckpt_bundle"}             # ModelScope download, merged in on first run
 
-[ -f "$CKPT/model.pt" ]     || { echo "no checkpoint at $CKPT/model.pt"; exit 1; }
-[ -f "$CKPT/config.yaml" ]  || { echo "no config at $CKPT/config.yaml"; exit 1; }
-[ -f "$INPUT" ]             || { echo "missing $INPUT (run make_jsonl.py first)"; exit 1; }
+# One-time: fold the downloaded weights into the code tree so paths line up.
+if [ ! -d "$ROOT/ckpt/vae" ] && [ -d "$BUNDLE/ckpt/vae" ]; then
+  echo "merging weights bundle into $ROOT ..."
+  cp -rn "$BUNDLE/ckpt" "$ROOT/"
+  mkdir -p "$ROOT/third_party"
+  cp -rn "$BUNDLE"/third_party/* "$ROOT/third_party/"
+fi
 
-if [ ! -d "$CODE_DIR" ]; then
-  git clone --depth 1 "${SONGGEN_REPO:-https://github.com/smthemex/ComfyUI_SongGeneration}" "$HERE/_mirror"
-  mv "$HERE/_mirror/SongGeneration" "$CODE_DIR"
-  rm -rf "$HERE/_mirror"
-fi
-#
-#
-#
-if [ ! -d "$WEIGHTS/ckpt/vae" ]; then
-  echo "Aux decoder bundle not found at $WEIGHTS (need ckpt/vae, ckpt/model_septoken, third_party/Qwen2-7B)."
-  echo "tencent/SongGeneration is gated/removed on HF; use the open ModelScope mirror:"
-  echo "  uvx --from modelscope modelscope download AI-ModelScope/SongGeneration --local_dir $WEIGHTS"
-  echo "  # (the LM you already have; you can skip ckpt/songgeneration_base/model.pt, ~11GB)"
-  exit 1
-fi
+[ -f "$MODEL" ]           || { echo "no LM at $MODEL"; exit 1; }
+[ -f "$CFG" ]             || { echo "no config at $CFG"; exit 1; }
+[ -d "$ROOT/ckpt/vae" ]   || { echo "no decoder weights at $ROOT/ckpt/vae (download ModelScope bundle to $BUNDLE)"; exit 1; }
+[ -f "$INPUT" ]           || { echo "missing $INPUT (run make_jsonl.py first)"; exit 1; }
 
 uv sync --quiet
 
 uv run python "$HERE/batch_generate.py" \
-  --config "$CKPT/config.yaml" --model "$CKPT/model.pt" --weights "$WEIGHTS" \
-  --input "$INPUT" --out "$OUT" --code "$CODE_DIR"
+  --config "$CFG" --model "$MODEL" --weights "$ROOT" --version v1 \
+  --input "$INPUT" --out "$OUT" --code "$ROOT"
 
 echo "Done -> $OUT/audio/*.flac"
 echo "Back on the metric box:"
 echo "  uv run python generate/build_manifest.py --dir generate/output/audio \\"
-echo "      --source generated:levo2 --out pilot/data/manifest_gen.csv"
+echo "      --source generated:songgen-base --out pilot/data/manifest_gen.csv"

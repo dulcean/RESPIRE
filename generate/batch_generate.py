@@ -70,6 +70,8 @@ def main() -> int:
     ap.add_argument(
         "--code", required=True, type=Path, help="cloned SongGeneration code dir"
     )
+    ap.add_argument("--version", default="v1", choices=["v1", "v2"],
+                    help="v1 for songgeneration_base, v2 for large_v2 checkpoints")
     ap.add_argument("--max-duration", type=float, default=150.0)
     ap.add_argument("--temp", type=float, default=0.9)
     ap.add_argument("--top-k", type=int, default=50)
@@ -85,7 +87,7 @@ def main() -> int:
     W = str(args.weights.resolve())
     cfg = OmegaConf.load(str(args.config))
     cfg.mode = "inference"
-    cfg.version = getattr(cfg, "version", "v2")
+    cfg.version = args.version
     cfg.offload_audiolm = False
     # ModelScope/tencent bundle layout: vae + tokenizers under ckpt/, Qwen2-7B at root.
     cfg.vae_config = f"{W}/ckpt/vae/stable_audio_1920_vae.json"
