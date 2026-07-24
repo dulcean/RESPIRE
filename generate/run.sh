@@ -17,6 +17,10 @@ if [ ! -d "$ROOT/ckpt/vae" ] && [ -d "$BUNDLE/ckpt/vae" ]; then
   cp -rn "$BUNDLE"/third_party/* "$ROOT/third_party/"
 fi
 
+
+mkdir -p "$ROOT/custom_nodes/ComfyUI_SongGeneration"
+ln -sfn "$ROOT" "$ROOT/custom_nodes/ComfyUI_SongGeneration/SongGeneration"
+
 [ -f "$MODEL" ]           || { echo "no LM at $MODEL"; exit 1; }
 [ -f "$CFG" ]             || { echo "no config at $CFG"; exit 1; }
 [ -d "$ROOT/ckpt/vae" ]   || { echo "no decoder weights at $ROOT/ckpt/vae (download ModelScope bundle to $BUNDLE)"; exit 1; }
