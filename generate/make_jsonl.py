@@ -40,15 +40,17 @@ TEMPI = ["mid tempo", "upbeat", "slow"]
 
 
 def build_lyric(v_pair_1, v_pair_2, chorus, bridge) -> str:
-    C = f"{chorus[0]}\n{chorus[1]}"
+    # SongGeneration v2 format: sections joined by " ; ", lines within a section by ".".
+    C = f"{chorus[0]}.{chorus[1]}"
+    b = bridge.replace(" / ", ".")
     return (
-        "[intro-short]\n"
-        f"[verse]\n{v_pair_1[0]}\n{v_pair_1[1]}\n"
-        f"[chorus]\n{C}\n"
-        f"[verse]\n{v_pair_2[0]}\n{v_pair_2[1]}\n"
-        f"[chorus]\n{C}\n"
-        f"[bridge]\n{bridge}\n"
-        f"[chorus]\n{C}\n"
+        "[intro-short] ; "
+        f"[verse] {v_pair_1[0]}.{v_pair_1[1]} ; "
+        f"[chorus] {C} ; "
+        f"[verse] {v_pair_2[0]}.{v_pair_2[1]} ; "
+        f"[chorus] {C} ; "
+        f"[bridge] {b} ; "
+        f"[chorus] {C} ; "
         "[outro-short]"
     )
 
