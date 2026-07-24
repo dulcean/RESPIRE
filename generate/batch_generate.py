@@ -43,8 +43,8 @@ def build_lm(cfg, model_path: str):
 def build_sep_tokenizer(cfg):
     from codeclm.models import builders
 
-    return builders.get_audio_tokenizer_model_cpu(
-        cfg.audio_tokenizer_checkpoint_sep, cfg
+    return builders.get_audio_tokenizer_model(
+        cfg.audio_tokenizer_checkpoint_sep, cfg.vae_config, cfg.vae_model, cfg.mode
     )
 
 
@@ -92,7 +92,7 @@ def main() -> int:
     (out_dir / "audio").mkdir(parents=True, exist_ok=True)
     entries = [json.loads(l) for l in input_path.read_text().splitlines() if l.strip()]
 
-    audiolm = build_lm(cfg, model_path).cuda()
+    audiolm = build_lm(cfg, model_path)
     lm = CodecLM(
         name="tmp",
         lm=audiolm,
@@ -110,6 +110,14 @@ def main() -> int:
         record_tokens=True,
         record_window=50,
     )
+    sep = build_sep_tokenizer(cfg).eval()
+    dec = CodecLM(
+        name="tmp",
+        lm=None,
+        audiotokenizer=None,
+        max_duration=args.max_duration,
+        seperate_tokenizer=sep,
+    )
 
     for i, ent in enumerate(entries):
         idx = ent["idx"]
@@ -120,6 +128,7 @@ def main() -> int:
         lyric = ent["gt_lyric"].replace("  ", " ")
         desc = ent.get("descriptions", "")
         try:
+            audiolm.cuda()
             with torch.autocast(device_type="cuda", dtype=torch.float16):
                 tokens = lm.generate(
                     lyrics=[lyric],
@@ -130,26 +139,25 @@ def main() -> int:
                     melody_is_wav=True,
                     return_tokens=True,
                 )
-            sep = build_sep_tokenizer(cfg).eval().cuda()
-            dec = CodecLM(
-                name="tmp",
-                lm=None,
-                audiotokenizer=None,
-                max_duration=args.max_duration,
-                seperate_tokenizer=sep,
-            )
+            audiolm.cpu()
+            torch.cuda.empty_cache()
+
+            sep.cuda()
             with torch.no_grad():
                 wav = dec.generate_audio(tokens, chunked=True, gen_type="mixed")[0]
-            sep = sep.cpu()
-            del sep, dec
+            sep.cpu()
             gc.collect()
             torch.cuda.empty_cache()
+
             w = wav.detach().cpu().float()
             if w.ndim == 1:
                 w = w.unsqueeze(0)
             torchaudio.save(str(out_path), w, cfg.sample_rate)
             print(f"[{i+1}/{len(entries)}] {idx}: ok", file=sys.stderr)
         except Exception as e:
+            audiolm.cpu()
+            sep.cpu()
+            torch.cuda.empty_cache()
             print(f"[{i+1}/{len(entries)}] {idx}: ERROR {e}", file=sys.stderr)
 
     print(f"Done -> {out_dir}/audio/*.flac")
