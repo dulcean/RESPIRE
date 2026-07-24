@@ -70,8 +70,6 @@ def main() -> int:
     ap.add_argument(
         "--code", required=True, type=Path, help="cloned SongGeneration code dir"
     )
-    ap.add_argument("--version", default="v1", choices=["v1", "v2"],
-                    help="v1 for songgeneration_base, v2 for large_v2 checkpoints")
     ap.add_argument("--max-duration", type=float, default=150.0)
     ap.add_argument("--temp", type=float, default=0.9)
     ap.add_argument("--top-k", type=int, default=50)
@@ -80,35 +78,27 @@ def main() -> int:
 
     sys.path.insert(0, str(args.code.resolve()))
     code_dir = args.code.resolve()
-    # the ComfyUI mirror imports a ComfyUI-only `folder_paths` module; stub it out.
-    import types
-    fp = types.ModuleType("folder_paths")
-    fp.base_path = str(code_dir)
-    fp.models_dir = str(code_dir.parent)  # so "<models_dir>/SongGeneration/ckpt/..." resolves
-    sys.modules.setdefault("folder_paths", fp)
     register_resolvers(code_dir)
-
-    # Resolve everything to absolute BEFORE chdir; the config's own paths are relative
-    # (./ckpt/..., third_party/Qwen2-7B) and assume cwd == SongGeneration root.
-    config_path = args.config.resolve()
-    model_path = str(args.model.resolve())
-    input_path = args.input.resolve()
-    out_dir = args.out.resolve()
-    os.chdir(code_dir)
 
     from codeclm.models import CodecLM
 
-    cfg = OmegaConf.load(str(config_path))
+    W = str(args.weights.resolve())
+    cfg = OmegaConf.load(str(args.config))
     cfg.mode = "inference"
-    cfg.version = args.version
+    cfg.version = getattr(cfg, "version", "v2")
     cfg.offload_audiolm = False
-    if "lm" in cfg:
-        cfg.lm.use_flash_attn_2 = False
 
-    (out_dir / "audio").mkdir(parents=True, exist_ok=True)
-    entries = [json.loads(l) for l in input_path.read_text().splitlines() if l.strip()]
+    cfg.vae_config = f"{W}/ckpt/vae/stable_audio_1920_vae.json"
+    cfg.vae_model = f"{W}/ckpt/vae/autoencoder_music_1320k.ckpt"
+    cfg.audio_tokenizer_checkpoint_sep = (
+        f"Flow1dVAESeparate_{W}/ckpt/model_septoken/model_2.safetensors"
+    )
+    cfg.conditioners.type_info.QwTextTokenizer.token_path = f"{W}/third_party/Qwen2-7B"
 
-    audiolm = build_lm(cfg, model_path).cuda()
+    (args.out / "audio").mkdir(parents=True, exist_ok=True)
+    entries = [json.loads(l) for l in args.input.read_text().splitlines() if l.strip()]
+
+    audiolm = build_lm(cfg, str(args.model)).cuda()
     lm = CodecLM(
         name="tmp",
         lm=audiolm,
@@ -129,7 +119,7 @@ def main() -> int:
 
     for i, ent in enumerate(entries):
         idx = ent["idx"]
-        out_path = out_dir / "audio" / f"{idx}.flac"
+        out_path = args.out / "audio" / f"{idx}.flac"
         if out_path.exists():
             print(f"[{i+1}/{len(entries)}] {idx}: exists, skip", file=sys.stderr)
             continue
