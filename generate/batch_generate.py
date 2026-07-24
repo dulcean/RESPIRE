@@ -68,6 +68,8 @@ def main() -> int:
     code_dir = args.code.resolve()
     sys.path.insert(0, str(code_dir))
 
+    sys.path.insert(0, str(code_dir / "third_party" / "stable_audio_tools"))
+
     fp = types.ModuleType("folder_paths")
     fp.base_path = str(code_dir)
     fp.models_dir = str(code_dir.parent)
